@@ -1,0 +1,29 @@
+test:
+  name: raac-ddos-eval
+  description: "RAAC evaluation: 3000 TPS DDoS with 70% normal (1-SSTORE) + 30% attack (200-SSTORE). 120s warmup + 300s measure."
+  workers:
+    type: local
+    number: 30
+  rounds:
+    - label: warmup
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 3000
+      workload:
+        module: benchmarks/mixedAttack.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+    - label: measure
+      txDuration: 300
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 3000
+      workload:
+        module: benchmarks/mixedAttack.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB

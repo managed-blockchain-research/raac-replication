@@ -1,0 +1,15 @@
+variant,run,client,gen,pause_ms
+baseline,3,nm,0,80.70
+baseline,3,nm,0,18.61
+baseline,3,nm,1,342.63
+baseline,3,nm,1,696.30
+baseline,3,nm,1,101.10
+baseline,3,nm,0,358.32
+baseline,3,nm,0,59.38
+baseline,3,nm,0,316.30
+baseline,3,nm,2,444.10
+baseline,3,nm,2,22.75
+baseline,3,nm,2,27.50
+baseline,3,nm,1,62.66
+baseline,3,nm,2,721.34
+baseline,3,nm,1,99.23

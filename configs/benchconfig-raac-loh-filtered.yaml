@@ -1,0 +1,29 @@
+test:
+  name: raac-loh-filtered
+  description: "RAAC evaluation (RAAC enabled): 200 TPS, 70% normal + 30% attack (96KB calldata). Attack txs blocked by AI before reaching node. 120s warmup + 300s measure."
+  workers:
+    type: local
+    number: 30
+  rounds:
+    - label: warmup
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 200
+      workload:
+        module: benchmarks/mixedAttackLOHRaac.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+    - label: measure
+      txDuration: 300
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 200
+      workload:
+        module: benchmarks/mixedAttackLOHRaac.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB

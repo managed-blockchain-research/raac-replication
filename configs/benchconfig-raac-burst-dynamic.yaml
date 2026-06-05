@@ -1,0 +1,85 @@
+test:
+  name: raac-burst-dynamic
+  description: "RAAC dynamic threshold eval: calm→attack burst→calm→attack burst. AI threshold adapts to NM GC pressure."
+  workers:
+    type: local
+    number: 30
+  rounds:
+    - label: warmup
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: warmup
+    - label: calm-1
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm1
+    - label: attack-burst-1
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 1.0
+          roundLabel: attack1
+    - label: calm-2
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm2
+    - label: attack-burst-2
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 1.0
+          roundLabel: attack2
+    - label: calm-3
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm3
