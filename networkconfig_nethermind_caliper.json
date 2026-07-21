@@ -2327,8 +2327,8 @@
     },
     "contractDeployerAddressPrivateKey": "0x0000000000000000000000000000000000000000000000000000000000000001",
     "fromAddressPrivateKey": "0x0000000000000000000000000000000000000000000000000000000000000001",
-    "transactionPollingTimeout": 90,
-    "transactionBlockTimeout": 200,
-    "txWallClockTimeout": 300
+    "transactionPollingTimeout": 12,
+    "transactionBlockTimeout": 30,
+    "txWallClockTimeout": 20
   }
 }

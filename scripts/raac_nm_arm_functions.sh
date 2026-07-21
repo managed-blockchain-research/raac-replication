@@ -91,7 +91,12 @@ run_config_nm() {
     local run_dir="${RESULTS_DIR}/${label}"; mkdir -p "${run_dir}"
     local data_dir="/home/yeochan.yoon/caliper-stress-test/data_n_${label}_${RUN_ID}"
     local nettrace="${run_dir}/gc_trace.nettrace"
-    local txpool_size="4096"
+    # 8192: validated to survive the full 6-round pattern (60+90+120+90+120+60s,
+    # 30 workers/100tps) with zero failures in every round, including the
+    # calm round immediately after an attack burst — smaller sizes (4096 and
+    # below) leave enough of a backlog that the following calm round shows
+    # 0% success. See project_raac_resubmission memory for the full story.
+    local txpool_size="8192"
 
     echo ""; echo "────────────────────────────────────────────────────────────────"
     echo "RUN: ${label} | $(date '+%Y-%m-%d %H:%M:%S')"
@@ -103,7 +108,15 @@ run_config_nm() {
             ;;
         native_evict)
             restart_ai_service_nm "raac" "0.95" "0.95" "100" "350"
-            txpool_size="64"
+            # 2048 (not 8192): small enough to show meaningful degradation
+            # during attack bursts (~11-37% success, vs 8192's ~95%+) while
+            # still fully recovering to 0-fail during the following calm
+            # round — the intended "naive capacity eviction can't tell
+            # attack from legit traffic" contrast. 512/1024 both showed
+            # permanent 0%-success collapse after the first burst (no
+            # recovery for the rest of the test) — too extreme to be a
+            # useful ablation baseline.
+            txpool_size="2048"
             ;;
         heap_only)
             restart_ai_service_nm "heap_only" "0.95" "0.70" "100" "250" "0.5"
