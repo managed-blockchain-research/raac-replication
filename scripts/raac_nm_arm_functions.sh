@@ -101,7 +101,7 @@ run_config_nm() {
         static)
             restart_ai_service_nm "raac" "0.95" "0.95" "100" "350"
             ;;
-        arm0)
+        native_evict)
             restart_ai_service_nm "raac" "0.95" "0.95" "100" "350"
             txpool_size="64"
             ;;

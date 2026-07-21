@@ -121,7 +121,7 @@ run_config() {
             # bounds — this override is smoke-test-only.
             restart_ai_service_with_config "heap_only" "0.95" "0.70" "0.01" "0.03" "${gc_log}" "0.5"
             ;;
-        arm0)
+        native_evict)
             # Arm0: tuned built-in txpool eviction, RAAC/ML fully bypassed.
             # AI service runs in pass-through mode (base=min=0.95, matching the
             # "static" config) so it never blocks anything itself — the ONLY
@@ -262,7 +262,7 @@ run_config() {
             non_null=$(cat "${raac_log_dir}"/*.jsonl | grep -c '"anomaly_score":null' || echo 0)
             echo "  anomaly_score=null count: ${non_null}/${total} (should equal total in heap_only mode)"
         fi
-    elif [ "${config}" = "arm0" ]; then
+    elif [ "${config}" = "native_evict" ]; then
         echo "  Besu native tx-pool config: min_gas_price=${tx_pool_min_gas_price} max_prioritized=${tx_pool_max_prioritized} layer_max_capacity=${tx_pool_layer_max_capacity}"
         echo "  RAAC/ML bypass confirmed: rejects should be ~0/${total} (AI service pass-through) — any real filtering must show up as accepted!=submitted at Besu"
     elif [ "${config}" = "dagor" ]; then

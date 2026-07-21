@@ -19,7 +19,7 @@ cd /home/yeochan.yoon/caliper-stress-test
 source scripts/raac_arm_functions.sh
 
 RESULTS_DIR="${1:?Usage: rerun_single_run.sh <RESULTS_DIR> <config> <rep> [occu_low occu_high heap_only_cutoff dagor_cpu_low dagor_cpu_high]}"
-CONFIG="${2:?config required (static|arm0|heap_only|dagor|moderate|aggressive)}"
+CONFIG="${2:?config required (static|native_evict|heap_only|dagor|moderate|aggressive)}"
 REP="${3:?rep number required}"
 OVERRIDE_OCCU_LOW="${4:-}"
 OVERRIDE_OCCU_HIGH="${5:-}"

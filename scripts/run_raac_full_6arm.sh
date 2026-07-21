@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# RAAC full 6-arm evaluation for resubmission — static / arm0 / heap_only /
+# RAAC full 6-arm evaluation for resubmission — static / native_evict / heap_only /
 # dagor / moderate / aggressive, n=8 each (up from n=3 in the original
 # eval13), full scale (workers=30, tps=100, heap=1g, 540s/rep) matching the
 # calibrated thresholds documented in run_raac_besu_eval13.sh.
@@ -30,7 +30,7 @@ exec > >(tee -a "${LOG_FILE}") 2>&1
 echo ""
 echo "======================================================================"
 echo "RAAC full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
-echo "  Arms: static arm0 heap_only dagor moderate aggressive"
+echo "  Arms: static native_evict heap_only dagor moderate aggressive"
 echo "  Heap=${HEAP_BESU}, workers=30 tps=100, 60+90+120+90+120+60=540s/rep"
 echo "======================================================================"
 
@@ -40,7 +40,7 @@ echo "Starting full 6-arm eval: 6 x ${N_REPS} = $((6 * N_REPS)) runs"
 echo "=============================="
 
 for i in $(seq 1 "${N_REPS}"); do
-    for cfg in static arm0 heap_only dagor moderate aggressive; do
+    for cfg in static native_evict heap_only dagor moderate aggressive; do
         wait_for_resource_headroom
         run_config "${cfg}" "${i}"
         rc=$?

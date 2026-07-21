@@ -27,7 +27,7 @@ exec > >(tee -a "${LOG_FILE}") 2>&1
 echo ""
 echo "======================================================================"
 echo "RAAC NM full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
-echo "  Arms: static arm0 heap_only dagor moderate aggressive"
+echo "  Arms: static native_evict heap_only dagor moderate aggressive"
 echo "  Heap=4GB (DOTNET_GCHeapHardLimit), Server GC, Clique PoA, RSS-based pressure"
 echo "======================================================================"
 
@@ -37,7 +37,7 @@ echo "Starting NM full 6-arm eval: 6 x ${N_REPS} = $((6 * N_REPS)) runs"
 echo "=============================="
 
 for i in $(seq 1 "${N_REPS}"); do
-    for cfg in static arm0 heap_only dagor moderate aggressive; do
+    for cfg in static native_evict heap_only dagor moderate aggressive; do
         wait_for_resource_headroom
         run_config_nm "${cfg}" "${i}"
         rc=$?

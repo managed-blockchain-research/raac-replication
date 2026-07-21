@@ -98,7 +98,7 @@ run_config() {
         static)
             restart_ai_service_with_config "raac" "0.95" "0.95" "${override_occu_low:-0.10}" "${override_occu_high:-0.25}" "${gc_log}"
             ;;
-        arm0)
+        native_evict)
             restart_ai_service_with_config "raac" "0.95" "0.95" "${override_occu_low:-0.10}" "${override_occu_high:-0.25}" "${gc_log}"
             tx_pool_max_prioritized="64"
             tx_pool_layer_max_capacity="500000"
