@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Resource-gated launcher for tonight's combined NM+Besu full 6-policy n=8
 # run. Started via `at 21:00` (fully detached from any terminal/session, so
-# it survives a disconnect) instead of waiting for a fixed 23:00 — polls
-# load/mem every 10 min from launch time and fires as soon as it's safe, but
-# never waits past the 23:00 hard deadline: results must exist by morning no
-# matter what, per explicit instruction ("결과가 나와야 해").
+# it survives a disconnect) — polls load/mem every 10 min from launch time
+# and fires ONLY once resources actually look free. No hard deadline / forced
+# launch: explicit instruction is to keep monitoring and start when there is
+# real headroom, not to force a start just because a clock time was reached.
 set -uo pipefail
 cd /home/yeochan.yoon/caliper-stress-test
 LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_gated_launch.log"
@@ -15,11 +15,9 @@ echo "======================================================================"
 echo "Gated launcher started: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "======================================================================"
 
-HARD_DEADLINE_EPOCH=$(date -d "23:00" +%s)
 CHECK_INTERVAL=600  # 10 min
 
 while true; do
-    now_epoch=$(date +%s)
     read -r load1 _ _ < /proc/loadavg
     free_gb=$(free -g | awk '/Mem:/{print $7}')
 
@@ -41,9 +39,6 @@ while true; do
         echo "  -> a pipeline process is already running (previous invocation?) — skipping this check."
     elif [ "${load_ok}" -eq 1 ] && [ "${mem_ok}" -eq 1 ]; then
         echo "  -> resources OK, launching now."
-        break
-    elif [ "${now_epoch}" -ge "${HARD_DEADLINE_EPOCH}" ]; then
-        echo "  -> hard deadline (23:00) reached — launching regardless of load to guarantee overnight progress."
         break
     else
         echo "  -> resources not ideal yet, waiting ${CHECK_INTERVAL}s."
