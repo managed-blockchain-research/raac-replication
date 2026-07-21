@@ -6,12 +6,19 @@
 # so gating once up front and then running 48 reps blind isn't safe.
 #
 # Thresholds calibrated against real data (see run_raac_tonight_gated.sh
-# comment header for the full story): idle cores (nproc - load1) > 15,
+# comment header for the full story): idle cores (nproc - load1) > 25,
 # available memory > 50G (sanity floor, not the real constraint — our own
 # footprint is ~10GB on a 502GB box), no OOM-killer event in the last 15 min.
+#
+# min_idle raised from 15->25 on 2026-07-21 ~13:20 KST: with the pipeline
+# actually running, static_nm_1 (rep 1 of the real n=8 run) hit a real load
+# spike (idle_cores dropped to ~26-29, still above the old 15 threshold) from
+# another user's simv jobs, and visibly degraded both calm-2 (34% success vs
+# the ~97% validated at quieter load) and attack-burst-2 in the SAME rep —
+# concrete evidence the old margin was too thin. See RERUN_NEEDED.txt.
 
 wait_for_resource_headroom() {
-    local nproc_count min_idle=15 min_mem_gb=50 interval=600
+    local nproc_count min_idle=25 min_mem_gb=50 interval=600
     nproc_count=$(nproc --all)
 
     while true; do
