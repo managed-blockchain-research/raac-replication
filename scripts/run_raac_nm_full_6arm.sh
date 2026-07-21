@@ -14,6 +14,7 @@
 set -uo pipefail
 cd /home/yeochan.yoon/caliper-stress-test
 source scripts/raac_nm_arm_functions.sh
+source scripts/resource_gate.sh
 
 N_REPS="${N_REPS:-8}"
 RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_nm_full6arm"
@@ -37,6 +38,7 @@ echo "=============================="
 
 for i in $(seq 1 "${N_REPS}"); do
     for cfg in static arm0 heap_only dagor moderate aggressive; do
+        wait_for_resource_headroom
         run_config_nm "${cfg}" "${i}"
         rc=$?
         if [ $rc -ne 0 ]; then

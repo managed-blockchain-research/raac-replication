@@ -14,6 +14,7 @@
 set -uo pipefail   # NOT -e: one failed rep must not abort the whole night
 cd /home/yeochan.yoon/caliper-stress-test
 source scripts/raac_arm_functions.sh
+source scripts/resource_gate.sh
 
 # n=8: 6 arms x 8 reps x ~630s/rep (incl. teardown/overhead) ~= 8.4h, leaving
 # buffer before "morning" for a possible re-run of one arm plus the paper
@@ -40,6 +41,7 @@ echo "=============================="
 
 for i in $(seq 1 "${N_REPS}"); do
     for cfg in static arm0 heap_only dagor moderate aggressive; do
+        wait_for_resource_headroom
         run_config "${cfg}" "${i}"
         rc=$?
         if [ $rc -ne 0 ]; then
