@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # RAAC NM (Nethermind) full 6-arm evaluation — companion to
 # run_raac_full_6arm.sh (Besu). Same 6 arms, adapted to .NET specifics (see
-# raac_nm_arm_functions.sh). Only run this AFTER the Besu run has fully
-# finished — they share ports 8545/8546/8000 and will corrupt each other's
-# runs if executed concurrently (AGENTS.md item 7).
+# raac_nm_arm_functions.sh). Never run concurrently with the Besu script —
+# they share ports 8545/8546/8000 and will corrupt each other's runs
+# (AGENTS.md item 7).
+#
+# Consensus: Clique PoA (not NethDev — NethDev has a hard 5-tx/block ceiling
+# that caused a 99.98% FeeTooLowToCompete failure rate under attack load).
+# GC: Server GC (DOTNET_gcServer=1, not Workstation) for better scaling under
+# the 30-worker concurrent load. See raac_nm_arm_functions.sh for the launch
+# flags and raac_clique_nm.json for the chainspec (chainId 0x63 to match
+# Caliper's networkconfig — this mismatch was the second half of the fix).
 set -uo pipefail
 cd /home/yeochan.yoon/caliper-stress-test
 source scripts/raac_nm_arm_functions.sh
@@ -20,7 +27,7 @@ echo ""
 echo "======================================================================"
 echo "RAAC NM full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
 echo "  Arms: static arm0 heap_only dagor moderate aggressive"
-echo "  Heap=4GB (DOTNET_GCHeapHardLimit), Workstation GC, RSS-based pressure"
+echo "  Heap=4GB (DOTNET_GCHeapHardLimit), Server GC, Clique PoA, RSS-based pressure"
 echo "======================================================================"
 
 echo ""

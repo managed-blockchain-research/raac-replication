@@ -9,8 +9,17 @@
 # AGENTS.md item 7.
 
 DOTNET_BIN="/home/yeochan.yoon/.dotnet/dotnet"
-NM_DLL="/home/yeochan.yoon/nethermind-last/nethermind.dll"
-NM_CFG="/home/yeochan.yoon/caliper-stress-test/nethermind-caliper-config/caliper_nethdev_cfg.json"
+# Clique PoA, not NethDev — NethDev has a hard-coded 5-tx/block ceiling that a
+# 30-worker/100tps attack burst blows straight through no matter what the
+# admission-control policy does (confirmed: 99.98% eth_sendRawTransaction
+# failures under static/no-control). XRAY hit the exact same wall and fixed it
+# by moving to Clique ("NethDev ceiling is uncontrolled confound") — reusing
+# that fix here. HEAP_NM stays at RAAC's own calibrated 4GB (NOT XRAY's 64GB
+# production-equivalent heap) since RAAC's whole point is a memory-constrained
+# heap that the attack workload can actually pressure.
+NM_DLL="/home/yeochan.yoon/nethermind/src/Nethermind/artifacts/bin/Nethermind.Runner/release/nethermind.dll"
+CHAINSPEC_NM="/home/yeochan.yoon/banning/raac_clique_nm.json"
+SEALER_KEY_NM="/home/yeochan.yoon/banning/experiments/xray/scripts/xray_sealer.key"
 HEAP_NM=4000000000
 NETWORKCONFIG_NM="networkconfig_nethermind_caliper.json"
 DEPLOY_NM="deploy_multi_contracts_nm.js"
@@ -124,37 +133,52 @@ run_config_nm() {
     fuser -k 8545/tcp 8546/tcp 2>/dev/null || true
     sleep 5; rm -rf "${data_dir}"; mkdir -p "${data_dir}"
 
-    export NETHERMIND_LAST_MODE="DISABLED"
+    # Server GC (not Workstation) — matches XRAY's fix; per-core heaps scale
+    # better under the 30-worker concurrent load that was starving NethDev.
     export DOTNET_GCHeapHardLimit="${HEAP_NM}"
     export COMPlus_GCHeapHardLimit="${HEAP_NM}"
-    export COMPlus_GCServer=0
-    export DOTNET_GCServer=0
+    export DOTNET_gcServer=1
+    export COMPlus_gcServer=1
     export DOTNET_EnableDiagnostics=1
     unset DOTNET_GCHighMemPercent COMPlus_GCHighMemPercent 2>/dev/null || true
 
-    nohup "${DOTNET_BIN}" "${NM_DLL}" --config "${NM_CFG}" \
+    nohup "${DOTNET_BIN}" "${NM_DLL}" \
+        --Init.ChainSpecPath "${CHAINSPEC_NM}" \
         --Init.BaseDbPath "${data_dir}" \
-        --Blocks.MinGasPrice 0 \
-        --TxPool.Size "${txpool_size}" \
+        --Init.EnableUnsecuredDevWallet true \
+        --Init.KeepDevWalletInMemory true \
+        --Init.DiagnosticMode MemDb \
+        --Init.DiscoveryEnabled false \
+        --Init.PeerManagerEnabled false \
+        --Init.MemoryHint 2000000000 \
+        --KeyStore.EnodeKeyFile "${SEALER_KEY_NM}" \
+        --Mining.Enabled true \
+        --JsonRpc.Enabled true --JsonRpc.Host 0.0.0.0 --JsonRpc.Port 8545 --JsonRpc.Timeout 20000 \
+        --JsonRpc.EnabledModules "Eth,Net,Web3,Debug,Admin,TxPool,Clique" \
+        --Sync.NetworkingEnabled false --Sync.SynchronizationEnabled false \
+        --Network.DiscoveryPort 0 --Network.P2PPort 0 \
+        --Blocks.MinGasPrice 0 --Blocks.TargetBlockGasLimit 1000000000 \
+        --TxPool.Size "${txpool_size}" --TxPool.BlobsSupport Disabled \
+        --Merge.Enabled false \
         > "${run_dir}/nm_console.log" 2>&1 &
     local pid=$!; echo "  NM PID: ${pid}"
 
     sleep 8
     if ! kill -0 ${pid} 2>/dev/null; then
         echo "failed=startup" > "${run_dir}/FAILED"
-        unset NETHERMIND_LAST_MODE DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit COMPlus_GCServer DOTNET_GCServer
+        unset DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit DOTNET_gcServer COMPlus_gcServer
         unset RAAC_LOG_DIR 2>/dev/null || true; return 1
     fi
     wait_for_rpc_nm || {
         stop_nm "${pid}"; echo "failed=rpc_timeout" > "${run_dir}/FAILED"
-        unset NETHERMIND_LAST_MODE DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit COMPlus_GCServer DOTNET_GCServer
+        unset DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit DOTNET_gcServer COMPlus_gcServer
         unset RAAC_LOG_DIR 2>/dev/null || true; return 1
     }
 
     node "${DEPLOY_NM}" > "${run_dir}/deploy.log" 2>&1
     grep -q "Contract Address:\|SB0:" "${run_dir}/deploy.log" || {
         stop_nm "${pid}"; echo "failed=deploy" > "${run_dir}/FAILED"
-        unset NETHERMIND_LAST_MODE DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit COMPlus_GCServer DOTNET_GCServer
+        unset DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit DOTNET_gcServer COMPlus_gcServer
         unset RAAC_LOG_DIR 2>/dev/null || true; return 1
     }
     sleep 5
@@ -183,7 +207,7 @@ run_config_nm() {
     : > caliper.log 2>/dev/null || true
 
     stop_nm "${pid}"; rm -rf "${data_dir}"
-    unset NETHERMIND_LAST_MODE DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit COMPlus_GCServer DOTNET_GCServer \
+    unset DOTNET_GCHeapHardLimit COMPlus_GCHeapHardLimit DOTNET_gcServer COMPlus_gcServer \
           DOTNET_GCHighMemPercent COMPlus_GCHighMemPercent 2>/dev/null || true
     unset RAAC_LOG_DIR 2>/dev/null || true
 
