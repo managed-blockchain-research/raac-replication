@@ -58,6 +58,12 @@ restart_ai_service_nm() {
     pkill -f "serve\.py" 2>/dev/null || true
     sleep 2
     cd "${AI_SERVICE_DIR}"
+    # AI service's asyncio accept loop spins on EMFILE under heavy attack-burst
+    # connection volume when the default soft limit (1024) is hit — floods
+    # logs with millions of "Too many open files" tracebacks and burns CPU,
+    # which can starve the monitored node too. Hard limit is 262144; raise
+    # the soft limit for this process (and its nohup'd child) accordingly.
+    ulimit -n 65536
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
     AI_MODE="${mode}" AI_HEAP_ONLY_CUTOFF="${cutoff}" \
     AI_THRESHOLD_BASE="${base_thr}" AI_THRESHOLD_MIN="${min_thr}" \
@@ -119,16 +125,45 @@ run_config_nm() {
             txpool_size="2048"
             ;;
         heap_only)
-            restart_ai_service_nm "heap_only" "0.95" "0.70" "100" "250" "0.5"
+            # Redesign 2026-07-24 (raac-experiment-redesign debate): delta
+            # bands tightened from 100/250 -- the wide band let RSS commit
+            # hundreds of MB before meaningful rejection engaged (confirmed:
+            # aggressive_nm_1 stayed pinned at pressure=1.0 for ~95s while
+            # RSS still climbed 1.25GB past the heap limit before death).
+            # See ai_service/serve.py's absolute-ceiling term + graduated
+            # reject-probability mechanism for the companion fixes.
+            #
+            # Update 2026-07-24 (2nd redesign pass): even with those fixes,
+            # heap_only/moderate/aggressive still die deterministically at
+            # round 2 (n=3 pilot, RUN_ID 20260724_114756) -- confirmed the
+            # bottleneck isn't reaction speed: pressure hit 1.0 (max reject)
+            # well before RSS peaked, yet RSS still climbed ~1.1GB further
+            # before plateauing. Admission control alone can't undo memory
+            # already committed by tx sitting in NM's pool waiting for block
+            # inclusion -- it only gates future submissions. Testing whether
+            # combining admission control with native_evict's own pool-bound
+            # mechanism (same 2048 cap) helps: RAAC's score-gating should
+            # keep the pool mostly clear of attack tx once pressure engages,
+            # while the smaller cap bounds worst-case backlog regardless of
+            # how fast that engagement happens. NOTE: Besu already runs
+            # heap_only/moderate/aggressive at a small 2048/2048 pool by
+            # default and STILL fails to complete rounds there -- this is
+            # NOT a guaranteed fix, it's an architectural experiment worth
+            # running given NM and Besu have diverged on every other arm
+            # (dagor, native_evict) throughout this project.
+            restart_ai_service_nm "heap_only" "0.95" "0.70" "50" "150"
+            txpool_size="2048"
             ;;
         dagor)
             restart_ai_service_nm "dagor" "0.95" "0.70" "100" "350" "0.5" "100" "800"
             ;;
         moderate)
-            restart_ai_service_nm "raac" "0.95" "0.70" "100" "350"
+            restart_ai_service_nm "raac" "0.95" "0.70" "40" "120"
+            txpool_size="2048"  # see heap_only's comment above -- same pool-bound experiment
             ;;
         aggressive)
-            restart_ai_service_nm "raac" "0.95" "0.70" "100" "200"
+            restart_ai_service_nm "raac" "0.95" "0.70" "25" "80"
+            txpool_size="2048"  # see heap_only's comment above -- same pool-bound experiment
             ;;
         *)
             echo "Unknown config: ${config}"; return 1 ;;
@@ -206,10 +241,68 @@ run_config_nm() {
     cp /tmp/serve_ai_nm_full6arm.log "${run_dir}/ai_service_before.log" 2>/dev/null || true
 
     echo "  Running Caliper (60s warmup + 90+120+90+120+60s burst pattern)..."
-    timeout 900 npx caliper launch manager \
+    # UPDATE 2026-08-02: 900s was too tight -- static_nm_1's own rounds 1-5 alone
+    # summed to ~813s (89+130+228+99+267s, all individually reasonable for NM's
+    # own known-slower profile vs Besu), leaving calm-3 almost no room and
+    # getting killed mid-round twice in a row (attempts 1-2, same anomaly both
+    # times -- not host-contention noise). Raised to 3600s to match Besu's own
+    # default outer_timeout, comfortably covering a full 6-round NM rep even
+    # under slow conditions.
+    timeout 3600 npx caliper launch manager \
         --caliper-workspace ./ --caliper-benchconfig "${BENCHCONFIG_RAAC}" \
         --caliper-networkconfig "${NETWORKCONFIG_NM}" \
-        > "${run_dir}/caliper_console.log" 2>&1 || true
+        > "${run_dir}/caliper_console.log" 2>&1 &
+    local caliper_pid=$!
+
+    # Fragmentation fuzz-loop hook (NM leg): only on the LAST aggressive rep.
+    # Unlike Besu (whose post-GC-occupancy pressure signal was found, via
+    # smoke test, to stay under its activation threshold even under heavy
+    # GC churn -- G1GC reclaims too effectively for this signal design to
+    # register elevated pressure), NM's RSS-based pressure signal is
+    # confirmed via the backlog-momentum finding to elevate substantially
+    # AND persist for minutes after an attack burst -- a much better
+    # candidate for testing "does fragmentation evade an already-elevated
+    # threshold." Poll for the same caliper round-orchestrator marker used
+    # by the Besu leg (same BENCHCONFIG_RAAC, so identical phase labels)
+    # rather than a fixed sleep, since round durations are transaction-count-
+    # based and stretch under host contention (confirmed empirically on the
+    # Besu leg).
+    local fuzz_pid=""
+    if [ "${config}" = "aggressive" ] && [ "${rep}" = "${N_REPS:-}" ]; then
+        (
+            local waited=0
+            while [ "${waited}" -lt 700 ]; do
+                grep -q "Started round 5 (attack-burst-2)" "${run_dir}/caliper_console.log" 2>/dev/null && break
+                sleep 5
+                waited=$((waited + 5))
+            done
+            if [ "${waited}" -ge 700 ]; then
+                echo "  WARNING: attack-burst-2 phase marker never appeared after 700s -- firing fuzz-loop anyway (best-effort, likely uninformative)"
+            else
+                sleep 20   # let RSS pressure build a bit within the steady-state-stress round before probing
+            fi
+            echo "  Running fragmentation fuzz-loop against live (pressured) NM node..."
+            CONTRACT_ADDR=$(python3 -c "import json; print(json.load(open('deployed_contracts_nm.json'))['addresses'][0])" 2>/dev/null || echo "")
+            if [ -n "${CONTRACT_ADDR}" ]; then
+                python3.11 scripts/fragmentation_fuzz.py \
+                    --ai-url http://127.0.0.1:8000 --contract-address "${CONTRACT_ADDR}" \
+                    --contract-abi StateBloater.json --k-values 1,2,3,4,5,6,8,10 --drip-delay 0 \
+                    --out "${run_dir}/fragmentation_fast.json" \
+                    > "${run_dir}/fragmentation_fast.log" 2>&1 || echo "  WARNING: fast fragmentation fuzz failed"
+                python3.11 scripts/fragmentation_fuzz.py \
+                    --ai-url http://127.0.0.1:8000 --contract-address "${CONTRACT_ADDR}" \
+                    --contract-abi StateBloater.json --k-values 5 --drip-delay 35 \
+                    --out "${run_dir}/fragmentation_slowdrip.json" \
+                    > "${run_dir}/fragmentation_slowdrip.log" 2>&1 || echo "  WARNING: slow-drip fragmentation fuzz failed"
+            else
+                echo "  WARNING: could not resolve contract address for fragmentation fuzz-loop"
+            fi
+        ) &
+        fuzz_pid=$!
+    fi
+
+    wait "${caliper_pid}" || true
+    [ -n "${fuzz_pid}" ] && { wait "${fuzz_pid}" 2>/dev/null || true; }
 
     cp /tmp/serve_ai_nm_full6arm.log "${run_dir}/ai_service_after.log" 2>/dev/null || true
     [ -n "${dt_pid}" ] && kill -INT "${dt_pid}" 2>/dev/null || true

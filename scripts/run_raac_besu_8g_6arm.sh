@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# RAAC full 6-arm evaluation for resubmission — static / native_evict / heap_only /
-# dagor / moderate / aggressive, n=8 each (up from n=3 in the original
-# eval13), full scale (workers=30, tps=100, heap=1g, 540s/rep) matching the
-# calibrated thresholds documented in run_raac_besu_eval13.sh.
+# RAAC Besu 6-arm evaluation at heap=8g — "recommended-heap reference /
+# boundary condition" arm of the heap-size dose-response study (1GB and 4GB
+# are the primary evaluation points; this 8GB run is Besu's own officially
+# documented minimum/recommended JVM heap per docs.besu-eth.org system
+# requirements). Framing (per user decision 2026-08-03): this is NOT meant to
+# show "RAAC works great at 8GB" -- it is expected the ~1.15GB/120s attack
+# burst creates much weaker relative pressure at 8GB (~14% of heap vs ~115%
+# at 1GB), so a flat/muted result here is itself the intended finding: it
+# defines the boundary condition where admission control stops being
+# necessary, pre-empting the reviewer question "Besu recommends a larger
+# heap -- are results just an artifact of artificially small settings?"
+# Report this table as "recommended-heap reference results", never as
+# "RAAC performance at 8GB" (the latter framing reads as a negative result).
 #
 # Arms: see scripts/raac_arm_functions.sh (shared library, also used by
 # scripts/rerun_single_run.sh for targeted re-runs of one arm/rep found bad
@@ -13,6 +22,7 @@
 # the still-live node before teardown.
 set -uo pipefail   # NOT -e: one failed rep must not abort the whole night
 cd /home/yeochan.yoon/caliper-stress-test
+export HEAP_BESU_OVERRIDE="8g"
 source scripts/raac_arm_functions.sh
 source scripts/resource_gate.sh
 
@@ -20,16 +30,16 @@ source scripts/resource_gate.sh
 # buffer before "morning" for a possible re-run of one arm plus the paper
 # rewrite. n=10 would run ~10.5h and cut the buffer too close.
 N_REPS="${N_REPS:-8}"
-RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_full6arm"
+RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_besu8g_6arm"
 RESULTS_DIR="/home/yeochan.yoon/caliper-stress-test/results/raac_eval/${RUN_ID}"
-LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_full6arm_run.log"
+LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_besu8g_6arm_run.log"
 
 mkdir -p "${RESULTS_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
 echo ""
 echo "======================================================================"
-echo "RAAC full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
+echo "RAAC Besu 6-arm eval @ 8GB heap (recommended-heap reference) | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
 echo "  Arms: static native_evict heap_only dagor moderate aggressive"
 echo "  Heap=${HEAP_BESU}, workers=30 tps=100, 60+90+120+90+120+60=540s/rep"
 echo "======================================================================"
@@ -118,9 +128,9 @@ done
 echo ""
 echo "======================================================================"
 if [ "${circuit_broken}" -eq 1 ]; then
-    echo "RAAC full 6-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
+    echo "RAAC Besu 8GB 6-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
 else
-    echo "RAAC full 6-arm eval COMPLETE — results in ${RESULTS_DIR}"
+    echo "RAAC Besu 8GB 6-arm eval COMPLETE — results in ${RESULTS_DIR}"
 fi
 echo "======================================================================"
 
@@ -130,8 +140,8 @@ python3.11 scripts/bootstrap_ci_report.py --results-dir "${RESULTS_DIR}" --basel
     --resamples 10000 --out "${RESULTS_DIR}/bootstrap_ci_report.md" \
     --out-json "${RESULTS_DIR}/bootstrap_ci_report.json"
 
-echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_FULL6ARM_RESULTS_DIR.txt
-echo "Done. Results dir recorded in LATEST_FULL6ARM_RESULTS_DIR.txt"
+echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_BESU8G_6ARM_RESULTS_DIR.txt
+echo "Done. Results dir recorded in LATEST_BESU8G_6ARM_RESULTS_DIR.txt (kept separate from LATEST_FULL6ARM_RESULTS_DIR.txt [4GB] and LATEST_BESU1G_6ARM_RESULTS_DIR.txt [1GB])."
 
 echo ""
 echo "Cleaning up temp/log clutter..."

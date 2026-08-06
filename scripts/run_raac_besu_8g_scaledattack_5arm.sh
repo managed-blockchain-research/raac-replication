@@ -1,42 +1,77 @@
 #!/usr/bin/env bash
-# RAAC full 6-arm evaluation for resubmission — static / native_evict / heap_only /
-# dagor / moderate / aggressive, n=8 each (up from n=3 in the original
-# eval13), full scale (workers=30, tps=100, heap=1g, 540s/rep) matching the
-# calibrated thresholds documented in run_raac_besu_eval13.sh.
+# RAAC Besu 5-arm evaluation at heap=8g WITH ATTACK INTENSITY SCALED 8x
+# (RAAC_TARGET_TPS=800, up from the default 100) -- validates that the
+# muted effect observed at 8GB with the DEFAULT (1x) attack intensity
+# (scripts/run_raac_besu_8g_6arm.sh) is a property of attack-severity-
+# relative-to-heap, not of heap size in isolation. At 1GB, the fixed
+# ~1.15GB/120s attack burst is ~115% of heap; at 8GB with the same 1x
+# intensity it is only ~14%. Scaling RAAC_TARGET_TPS 8x (100->800) delivers
+# ~8x the attack byte-volume in the same 120s attack-round window,
+# reconstructing approximately the same ~115% severity-to-heap ratio at
+# 8GB that was originally observed at 1GB. If RAAC's own mechanisms
+# (Moderate/Aggressive) recover a large duty-cycle reduction here despite
+# the generous 8GB heap, that confirms RAAC's usefulness tracks relative
+# attack severity, not absolute heap size -- i.e. it remains valuable
+# against a sufficiently severe/adaptive attacker even on a
+# recommended-sized, generously-provisioned node. We scale TPS rather than
+# per-transaction payload size specifically to avoid confounding with
+# G1GC's heap-size-dependent humongous-object region-size heuristic, and
+# rather than round duration specifically to avoid an ~8x wall-clock blowup.
+# RAAC_TARGET_TPS is read once via env var by mixedAttackLOHRaacBurst.js
+# (already-existing knob, zero code changes) and applies uniformly across
+# calm and attack rounds alike -- calm rounds simply carry 8x more
+# legitimate traffic.
 #
-# Arms: see scripts/raac_arm_functions.sh (shared library, also used by
-# scripts/rerun_single_run.sh for targeted re-runs of one arm/rep found bad
-# during a mid-run sanity check, instead of re-running the whole night).
+# native_evict EXCLUDED from this sweep (smoke test 20260805_071745): its
+# tx_pool_max_prioritized=64 was deliberately tuned tiny for RAAC_TARGET_TPS=100
+# (see raac_arm_functions.sh:123-206). At TPS=800 the same 64-slot pool takes
+# 8x the submission pressure, causing pool-eviction storms severe enough that
+# Besu's own Netty RPC acceptor thread started throwing
+# "Failed to register an accepted channel" / IllegalStateException, at which
+# point Succ froze while Fail climbed unbounded (~98% fail, still climbing,
+# in attack-burst-1 of the smoke test). This is a known, already-documented
+# scaling limit of native_evict's tiny-pool design, not a new finding
+# relevant to this experiment's question (whether RAAC's OWN adaptive
+# policies -- Moderate/Aggressive -- regain benefit at 8GB under
+# proportionally severe attack). Re-tuning native_evict's pool size to scale
+# with TPS would confound the "keep native_evict's definition constant
+# across the heap/severity sweep" comparison anyway, so it is simply out of
+# scope here rather than fixed.
+#
+# Arms: static heap_only dagor moderate aggressive (see
+# scripts/raac_arm_functions.sh, shared library).
 #
 # After the LAST aggressive rep's caliper run (steady-state-stress phase has
 # already lowered the threshold), the fragmentation fuzz-loop runs against
 # the still-live node before teardown.
 set -uo pipefail   # NOT -e: one failed rep must not abort the whole night
 cd /home/yeochan.yoon/caliper-stress-test
+export HEAP_BESU_OVERRIDE="8g"
+export RAAC_TARGET_TPS="${RAAC_TARGET_TPS:-800}"
 source scripts/raac_arm_functions.sh
 source scripts/resource_gate.sh
 
-# n=8: 6 arms x 8 reps x ~630s/rep (incl. teardown/overhead) ~= 8.4h, leaving
+# n=8: 5 arms x 8 reps x ~630s/rep (incl. teardown/overhead) ~= 7h, leaving
 # buffer before "morning" for a possible re-run of one arm plus the paper
-# rewrite. n=10 would run ~10.5h and cut the buffer too close.
+# rewrite.
 N_REPS="${N_REPS:-8}"
-RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_full6arm"
+RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_besu8g_scaledattack_5arm"
 RESULTS_DIR="/home/yeochan.yoon/caliper-stress-test/results/raac_eval/${RUN_ID}"
-LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_full6arm_run.log"
+LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_besu8g_scaledattack_5arm_run.log"
 
 mkdir -p "${RESULTS_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
 echo ""
 echo "======================================================================"
-echo "RAAC full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
-echo "  Arms: static native_evict heap_only dagor moderate aggressive"
-echo "  Heap=${HEAP_BESU}, workers=30 tps=100, 60+90+120+90+120+60=540s/rep"
+echo "RAAC Besu 5-arm eval @ 8GB heap, 8x SCALED ATTACK (RAAC_TARGET_TPS=${RAAC_TARGET_TPS}) | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
+echo "  Arms: static heap_only dagor moderate aggressive (native_evict excluded -- see header comment)"
+echo "  Heap=${HEAP_BESU}, workers=30 tps=${RAAC_TARGET_TPS}, 60+90+120+90+120+60=540s/rep"
 echo "======================================================================"
 
 echo ""
 echo "=============================="
-echo "Starting full 6-arm eval: 6 x ${N_REPS} = $((6 * N_REPS)) runs"
+echo "Starting full 5-arm eval: 5 x ${N_REPS} = $((5 * N_REPS)) runs"
 echo "=============================="
 
 
@@ -55,7 +90,7 @@ circuit_broken=0
 
 for i in $(seq 1 "${N_REPS}"); do
     [ "${circuit_broken}" -eq 1 ] && break
-    for cfg in static native_evict heap_only dagor moderate aggressive; do
+    for cfg in static heap_only dagor moderate aggressive; do
         wait_for_resource_headroom
         label="${cfg}_besu_${i}"
         run_dir="${RESULTS_DIR}/${label}"
@@ -97,7 +132,7 @@ for i in $(seq 1 "${N_REPS}"); do
             echo "######################################################################"
             echo "CIRCUIT BREAKER TRIPPED: ${persistent_failures} labels failed after ${max_attempts} attempts each."
             echo "Suspecting a systemic/design issue, not host-contention noise. Stopping"
-            echo "the Besu 6-arm phase here (not blindly running the remaining reps)."
+            echo "the Besu 5-arm phase here (not blindly running the remaining reps)."
             echo "######################################################################"
             pkill -9 -f "hyperledger.besu.Besu" 2>/dev/null || true
             pkill -9 -f "serve\.py" 2>/dev/null || true
@@ -118,9 +153,9 @@ done
 echo ""
 echo "======================================================================"
 if [ "${circuit_broken}" -eq 1 ]; then
-    echo "RAAC full 6-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
+    echo "RAAC Besu 8GB scaled-attack 5-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
 else
-    echo "RAAC full 6-arm eval COMPLETE — results in ${RESULTS_DIR}"
+    echo "RAAC Besu 8GB scaled-attack 5-arm eval COMPLETE — results in ${RESULTS_DIR}"
 fi
 echo "======================================================================"
 
@@ -130,8 +165,8 @@ python3.11 scripts/bootstrap_ci_report.py --results-dir "${RESULTS_DIR}" --basel
     --resamples 10000 --out "${RESULTS_DIR}/bootstrap_ci_report.md" \
     --out-json "${RESULTS_DIR}/bootstrap_ci_report.json"
 
-echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_FULL6ARM_RESULTS_DIR.txt
-echo "Done. Results dir recorded in LATEST_FULL6ARM_RESULTS_DIR.txt"
+echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_BESU8G_SCALEDATTACK_5ARM_RESULTS_DIR.txt
+echo "Done. Results dir recorded in LATEST_BESU8G_SCALEDATTACK_5ARM_RESULTS_DIR.txt (kept separate from the 4GB/1GB/8GB-default-intensity pointer files)."
 
 echo ""
 echo "Cleaning up temp/log clutter..."

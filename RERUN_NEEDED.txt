@@ -1,0 +1,54 @@
+# RERUN_NEEDED queue — reset 2026-07-21 ~17:20 KST.
+# Prior entries (static/native_evict calm-2/calm-3 failures) reclassified:
+# root-caused to GC-recovery-timescale (RSS plateaus after attack ends, but
+# throughput only resumes after ~2-3min of settling, longer than the 60-90s
+# calm-2/calm-3 rounds) via the recovery-time diagnostic (warmup+attack+5min
+# calm showed RSS stabilize ~4.1GB and Succ recover to ~95% by minute 3-4).
+# User decision: keep round durations as-is, treat prolonged post-attack
+# instability as a genuine paper finding (motivates PROACTIVE admission
+# control), not a bug to engineer away. No code changes made — pool sizes
+# (8192 default / 2048 native_evict) and delta_low/delta_high (100/350 for
+# moderate, 100/200 for aggressive) are unchanged from the last commit.
+# A rep showing 0%-or-partial success in a calm round following an attack
+# burst is NOT automatically a rerun candidate anymore -- it may just be
+# this real phenomenon. Only flag here for genuine infra failures (process
+# death, FAILED marker, resource-gate stuck for hours) going forward.
+
+# --- 2026-07-23 ~15:40 KST, RUN_ID 20260723_141401_raac_nm_full6arm ---
+# CORRECTED 2026-07-23 ~16:45 KST after a 3-round /octo:debate + direct log
+# evidence (see raac_nm_round3_stall_bug memory for full writeup):
+# heap_only_nm_1's stall was NOT resource contention -- it's the genuine
+# node-side LOH/GC-pressure phenomenon (RSS hit ~3.7GB approaching the 4GB
+# heap limit, pressure=0.83, right before the node started missing RPC
+# deadlines -- confirmed via caliper.log "[outer-guard] ... wall-clock
+# deadline exceeded" errors + ai_service_after.log RSS trace). REMOVED from
+# this queue -- it's real signal (this is what RAAC is supposed to help
+# with), not something to exclude/rerun. Do NOT re-add heap_only/moderate/
+# aggressive reps here just for failing round5 in an attack round -- that's
+# now expected, variable behavior, not a bug.
+#
+# UPDATE 2026-07-24 ~11:00 KST, after full n=8 completed (all 8 dagor reps
+# are 0/8 round-completion, not just rep 1 -- the "rare per-worker race,
+# unrelated to LOH/GC" characterization below is SUPERSEDED, see
+# raac_nm_round3_stall_bug memory for full writeup). Root cause confirmed
+# via serve.py:71,457-458 + all 8 reps' ai_service_after.log: AI_MODE=dagor
+# gates admission PURELY on CPU utilization (_dagor_pressure), completely
+# ignoring the RSS/GC-pressure signal that keeps running in parallel in the
+# same log. In every one of the 8 reps, that RSS-pressure signal saturates
+# at 1.000 (dozens of times, RSS climbing to 5.1-8.4GB) while the CPU signal
+# that actually gates admission stays comfortably low (~100-400% of an 800%
+# cap) -- dagor never meaningfully rejects, so the node suffers the same
+# catastrophic RSS-driven GC-thrash/RPC-deadline-exceeded collapse
+# (16k-33k "[outer-guard] ... wall-clock deadline exceeded" errors per rep)
+# as an undefended baseline would. This is a genuine, uniform, reportable
+# ablation finding -- naive CPU-based admission control (dagor, representing
+# classic DAGOR-style overload protection) is structurally blind to
+# LOH/GC-pressure-driven overload -- NOT a bug, NOT resource contention, NOT
+# a rare per-worker race. REMOVED from this queue -- no rerun needed.
+#
+# (Superseded rep-1-only note, kept for history: "dagor_nm_1's stall happened
+# in a *calm* round with node+system both healthy (sar 77% idle, Clique
+# still sealing) -- genuinely unexplained." That characterization looked at
+# an early, transient point in the log before RSS had accumulated to
+# dangerous levels; the full-log RSS trace for that same rep shows the same
+# late-run pressure=1.000 saturation as all the other reps.)

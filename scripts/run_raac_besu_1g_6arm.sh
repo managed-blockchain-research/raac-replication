@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# RAAC full 6-arm evaluation for resubmission — static / native_evict / heap_only /
-# dagor / moderate / aggressive, n=8 each (up from n=3 in the original
-# eval13), full scale (workers=30, tps=100, heap=1g, 540s/rep) matching the
-# calibrated thresholds documented in run_raac_besu_eval13.sh.
+# RAAC Besu 6-arm evaluation at heap=1g — apples-to-apples reconciliation with
+# the paper's Table 2 flagship result (run_raac_besu_eval13.sh, 3 arms only,
+# n=3, 1GB heap), extended to all six policies (adding native_evict/dagor/
+# heap_only, never previously tested at 1GB) at n=8 for paper-grade stats.
+# HEAP_BESU was moved to 4g on 2026-07-24 (see raac_arm_functions.sh comment)
+# specifically to match NM's 4GB severity for the cross-runtime comparison --
+# this script overrides back to 1g via HEAP_BESU_OVERRIDE, Besu-only, to see
+# whether RAAC's dramatic flagship benefit (and the Table 4 lever-inversion
+# finding) holds at the heap size where the flagship number was measured.
 #
 # Arms: see scripts/raac_arm_functions.sh (shared library, also used by
 # scripts/rerun_single_run.sh for targeted re-runs of one arm/rep found bad
@@ -13,6 +18,7 @@
 # the still-live node before teardown.
 set -uo pipefail   # NOT -e: one failed rep must not abort the whole night
 cd /home/yeochan.yoon/caliper-stress-test
+export HEAP_BESU_OVERRIDE="1g"
 source scripts/raac_arm_functions.sh
 source scripts/resource_gate.sh
 
@@ -20,16 +26,16 @@ source scripts/resource_gate.sh
 # buffer before "morning" for a possible re-run of one arm plus the paper
 # rewrite. n=10 would run ~10.5h and cut the buffer too close.
 N_REPS="${N_REPS:-8}"
-RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_full6arm"
+RUN_ID="$(date +%Y%m%d_%H%M%S)_raac_besu1g_6arm"
 RESULTS_DIR="/home/yeochan.yoon/caliper-stress-test/results/raac_eval/${RUN_ID}"
-LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_full6arm_run.log"
+LOG_FILE="/home/yeochan.yoon/caliper-stress-test/raac_besu1g_6arm_run.log"
 
 mkdir -p "${RESULTS_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
 echo ""
 echo "======================================================================"
-echo "RAAC full 6-arm eval | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
+echo "RAAC Besu 6-arm eval @ 1GB heap | n=${N_REPS} each | RUN_ID: ${RUN_ID}"
 echo "  Arms: static native_evict heap_only dagor moderate aggressive"
 echo "  Heap=${HEAP_BESU}, workers=30 tps=100, 60+90+120+90+120+60=540s/rep"
 echo "======================================================================"
@@ -118,9 +124,9 @@ done
 echo ""
 echo "======================================================================"
 if [ "${circuit_broken}" -eq 1 ]; then
-    echo "RAAC full 6-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
+    echo "RAAC Besu 1GB 6-arm eval CIRCUIT-BROKEN (stopped early) — partial results in ${RESULTS_DIR}"
 else
-    echo "RAAC full 6-arm eval COMPLETE — results in ${RESULTS_DIR}"
+    echo "RAAC Besu 1GB 6-arm eval COMPLETE — results in ${RESULTS_DIR}"
 fi
 echo "======================================================================"
 
@@ -130,8 +136,8 @@ python3.11 scripts/bootstrap_ci_report.py --results-dir "${RESULTS_DIR}" --basel
     --resamples 10000 --out "${RESULTS_DIR}/bootstrap_ci_report.md" \
     --out-json "${RESULTS_DIR}/bootstrap_ci_report.json"
 
-echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_FULL6ARM_RESULTS_DIR.txt
-echo "Done. Results dir recorded in LATEST_FULL6ARM_RESULTS_DIR.txt"
+echo "${RESULTS_DIR}" > /home/yeochan.yoon/caliper-stress-test/LATEST_BESU1G_6ARM_RESULTS_DIR.txt
+echo "Done. Results dir recorded in LATEST_BESU1G_6ARM_RESULTS_DIR.txt (kept separate from LATEST_FULL6ARM_RESULTS_DIR.txt, the 4GB run)."
 
 echo ""
 echo "Cleaning up temp/log clutter..."

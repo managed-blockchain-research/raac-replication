@@ -18,6 +18,7 @@ test:
           contractPrefix: SB
           attackRatio: 0
           roundLabel: warmup
+          roundDurationSeconds: 60
     - label: calm-1
       txDuration: 90
       rateControl:
@@ -31,6 +32,7 @@ test:
           contractPrefix: SB
           attackRatio: 0
           roundLabel: calm1
+          roundDurationSeconds: 90
     - label: attack-burst-1
       txDuration: 120
       rateControl:
@@ -44,6 +46,7 @@ test:
           contractPrefix: SB
           attackRatio: 1.0
           roundLabel: attack1
+          roundDurationSeconds: 120
     - label: calm-2
       txDuration: 90
       rateControl:
@@ -57,6 +60,7 @@ test:
           contractPrefix: SB
           attackRatio: 0
           roundLabel: calm2
+          roundDurationSeconds: 90
     - label: attack-burst-2
       txDuration: 120
       rateControl:
@@ -70,6 +74,7 @@ test:
           contractPrefix: SB
           attackRatio: 1.0
           roundLabel: attack2
+          roundDurationSeconds: 120
     - label: calm-3
       txDuration: 60
       rateControl:
@@ -83,3 +88,4 @@ test:
           contractPrefix: SB
           attackRatio: 0
           roundLabel: calm3
+          roundDurationSeconds: 60
