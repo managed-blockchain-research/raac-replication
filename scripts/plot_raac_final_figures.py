@@ -137,15 +137,23 @@ def plot_heap_doseresponse():
     others_fail = [COLLATERAL_FAIL_PCT[h]['others_max'] for h in heaps]
     xw = np.arange(len(heaps))
     width = 0.35
-    ax2.bar(xw - width / 2, ne_fail, width, color=COLORS[ARM_ORDER.index('native_evict')],
-            alpha=0.85, label='Native Evict')
-    ax2.bar(xw + width / 2, others_fail, width, color='#bbbbbb',
-            alpha=0.85, label='All other policies (max)')
+    bars_ne = ax2.bar(xw - width / 2, ne_fail, width, color=COLORS[ARM_ORDER.index('native_evict')],
+                       alpha=0.85, label='Native Evict')
+    bars_others = ax2.bar(xw + width / 2, others_fail, width, color='#bbbbbb',
+                           alpha=0.85, label='All other policies (max)')
     ax2.set_xticks(xw)
     ax2.set_xticklabels(['1 GB', '4 GB', '8 GB'])
     ax2.set_xlabel('Heap size')
     ax2.set_ylabel('Calm-round benign-tx fail rate (%)')
+    ax2.set_ylim(0, max(ne_fail) * 1.18)
     ax2.legend(loc='upper right', frameon=False, fontsize=8)
+
+    # The "all other policies" bars are near-zero (0.00-0.06%) next to
+    # Native Evict's 8-9% -- at this scale they're visually indistinguishable
+    # from "no bar at all". Label every bar with its exact value so the
+    # near-zero result reads as a measured near-zero, not missing data.
+    ax2.bar_label(bars_ne, fmt='%.1f%%', fontsize=7, padding=2)
+    ax2.bar_label(bars_others, fmt='%.2f%%', fontsize=7, padding=2)
 
     fig.tight_layout(pad=1.2, w_pad=3.5)
     out_stem = 'raac_fig8_heap_doseresponse'
@@ -216,6 +224,49 @@ def plot_scaledattack_validation():
     print(f'wrote {out_stem}.pdf / .svg / .png')
 
 
+FRAGMENTATION_JSON = Path(
+    '/home/yeochan.yoon/caliper-stress-test/paper_data/'
+    'fragmentation_evasion/fragmentation_fast.json'
+)
+ATTACK_SCORE_REF = 0.80
+
+
+def plot_fragmentation_evasion():
+    """Single-panel figure: per-fragment anomaly score vs. fragment payload
+    size (log-x), swept over fragment counts k=1..96 of a fixed 96KB attack
+    payload. Score is independent of the live pressure state (only the
+    accept/reject probability given a score depends on pressure), so this
+    is a clean, pressure-independent view of the mechanism the 32-fragment
+    evasion threshold rests on. No panel title -- caption in LaTeX carries
+    the framing."""
+    data = json.load(open(FRAGMENTATION_JSON))
+    k_values = data['k_values']
+    bytes_per_k = [data['results'][str(k)]['fragments'][0]['bytes'] for k in k_values]
+    scores = [data['results'][str(k)]['fragments'][0]['anomaly_score'] for k in k_values]
+
+    fig, ax = plt.subplots(1, 1, figsize=(5.2, 3.4))
+    ax.plot(bytes_per_k, scores, marker='o', markersize=4, color='#1f77b4', linewidth=1.2)
+    ax.axhline(ATTACK_SCORE_REF, color='#d62728', linestyle='--', linewidth=1,
+               label=f'Attack-score reference ({ATTACK_SCORE_REF:.2f})')
+    ax.set_xscale('log')
+    ax.set_xlabel('Fragment payload size (bytes)')
+    ax.set_ylabel('Anomaly score')
+    ax.invert_xaxis()
+
+    for k, b, s in zip(k_values, bytes_per_k, scores):
+        if k in (24, 32):
+            ax.annotate(f'k={k}', (b, s), textcoords='offset points',
+                        xytext=(0, 8 if k == 24 else -14), ha='center', fontsize=8)
+
+    ax.legend(loc='lower left', frameon=False, fontsize=8)
+    fig.tight_layout(pad=1.2)
+    out_stem = 'raac_fig10_fragmentation_evasion'
+    for ext in ('pdf', 'svg', 'png'):
+        fig.savefig(OUT_DIR / f'{out_stem}.{ext}', dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f'wrote {out_stem}.pdf / .svg / .png')
+
+
 def main():
     nm_completion = load(NM_JSON, 'nm')
     besu_completion = load(BESU_JSON, 'besu')
@@ -223,6 +274,7 @@ def main():
     plot_platform(besu_completion, 'Besu', 'raac_fig7_besu_completion_duty')
     plot_heap_doseresponse()
     plot_scaledattack_validation()
+    plot_fragmentation_evasion()
 
 
 if __name__ == '__main__':

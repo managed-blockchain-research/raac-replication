@@ -355,9 +355,20 @@ run_config() {
             echo "  Running fragmentation fuzz-loop against live (pressured) node..."
             CONTRACT_ADDR=$(python3 -c "import json; print(json.load(open('deployed_contracts.json'))['addresses'][0])" 2>/dev/null || echo "")
             if [ -n "${CONTRACT_ADDR}" ]; then
+                # k-values widened 2026-08-13: the original 1..10 sweep never
+                # got a single fragment's bytecode_size below ~9.6KB (96KB/10),
+                # still 2.4x outside the anomaly model's training distribution
+                # for normal traffic (bytecode_size in [0,4000]B, see
+                # ml_model.py's _generate_synthetic_normal) -- so the model's
+                # decision function saturated and every fragment scored an
+                # identical 0.8952 regardless of k, making the old "5
+                # fragments is the minimum that evades" claim unverifiable
+                # from this data. Extended to 96 (96000/96=1000B/fragment,
+                # well inside the training range) so the sweep actually
+                # crosses into the region where the score can drop.
                 python3.11 scripts/fragmentation_fuzz.py \
                     --ai-url http://127.0.0.1:8000 --contract-address "${CONTRACT_ADDR}" \
-                    --contract-abi StateBloater.json --k-values 1,2,3,4,5,6,8,10 --drip-delay 0 \
+                    --contract-abi StateBloater.json --k-values 1,2,3,4,5,6,8,10,12,16,20,24,32,48,64,96 --drip-delay 0 \
                     --out "${run_dir}/fragmentation_fast.json" \
                     > "${run_dir}/fragmentation_fast.log" 2>&1 || echo "  WARNING: fast fragmentation fuzz failed"
                 # Slow-drip (~140-180s total) will run past the 120s

@@ -1,0 +1,79 @@
+{
+  "k_values": [
+    5
+  ],
+  "drip_delay": 35.0,
+  "baseline_gas_used_k1": 0,
+  "results": {
+    "5": {
+      "fragments": [
+        {
+          "k": 5,
+          "fragment": 0,
+          "bytes": 19200,
+          "gas_limit_feature": 118268,
+          "anomaly_score": 0.8952,
+          "ai_action": "accept",
+          "accepted": true,
+          "gc_pressure_before": 0.3086,
+          "gas_used": 98557,
+          "tx_hash": "f14595138024a59c4fdc54b83466d04cf1eda90c1bde4d54524b81bca0b4aa0a"
+        },
+        {
+          "k": 5,
+          "fragment": 1,
+          "bytes": 19200,
+          "gas_limit_feature": 118268,
+          "anomaly_score": 0.8952,
+          "ai_action": "reject",
+          "accepted": false,
+          "gc_pressure_before": 0.3086,
+          "gas_used": 0,
+          "tx_hash": null
+        },
+        {
+          "k": 5,
+          "fragment": 2,
+          "bytes": 19200,
+          "gas_limit_feature": 118268,
+          "anomaly_score": 0.8952,
+          "ai_action": "accept",
+          "accepted": true,
+          "gc_pressure_before": 0.3086,
+          "gas_used": 98557,
+          "tx_hash": "226e54005e1ee3933819760d2184b8677da15a93314e02d57adfe40a9565233d"
+        },
+        {
+          "k": 5,
+          "fragment": 3,
+          "bytes": 19200,
+          "gas_limit_feature": 118268,
+          "anomaly_score": 0.8952,
+          "ai_action": "accept",
+          "accepted": true,
+          "gc_pressure_before": 0.3086,
+          "gas_used": 98557,
+          "tx_hash": "73a0311ebebf733f49d7cf3e7d7c43e656b3c82ecd5649667f9062634b1bf89b"
+        },
+        {
+          "k": 5,
+          "fragment": 4,
+          "bytes": 19200,
+          "gas_limit_feature": 118268,
+          "anomaly_score": 0.8952,
+          "ai_action": "accept",
+          "accepted": true,
+          "gc_pressure_before": 0.3086,
+          "gas_used": 98557,
+          "tx_hash": "be09fb3a3eba68f89b1550bcab561bbafa027b3fbaf362b06b094c6e2219a4b5"
+        }
+      ],
+      "accepted_count": 4,
+      "total_fragments": 5,
+      "accept_rate": 0.8,
+      "total_gas_used": 394228,
+      "base_gas_multiplier": 5,
+      "real_gas_multiplier": null
+    }
+  }
+}
