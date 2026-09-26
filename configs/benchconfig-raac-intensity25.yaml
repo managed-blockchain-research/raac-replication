@@ -1,0 +1,91 @@
+test:
+  name: raac-intensity25
+  description: "RAAC Pareto-frontier attack-intensity sweep (2026-09-24 ETRI resubmission), Besu case study: identical six-phase schedule and workload module to benchconfig-raac-burst-dynamic.yaml, attack-burst rounds at attackRatio=0.25."
+  workers:
+    type: local
+    number: 30
+  rounds:
+    - label: warmup
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: warmup
+          roundDurationSeconds: 60
+    - label: calm-1
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm1
+          roundDurationSeconds: 90
+    - label: attack-burst-1
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0.25
+          roundLabel: attack1
+          roundDurationSeconds: 120
+    - label: calm-2
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm2
+          roundDurationSeconds: 90
+    - label: attack-burst-2
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0.25
+          roundLabel: attack2
+          roundDurationSeconds: 120
+    - label: calm-3
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurst.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm3
+          roundDurationSeconds: 60

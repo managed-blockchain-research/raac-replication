@@ -1,0 +1,91 @@
+test:
+  name: raac-shapesweep
+  description: "RAAC allocator-threshold straddling sweep (2026-09-24 ETRI resubmission): identical six-phase schedule to benchconfig-raac-burst-dynamic.yaml, but the attack payload shape is read at runtime from RAAC_ATTACK_PAYLOAD_BYTES / RAAC_ATTACK_SHAPE_MIX / RAAC_ATTACK_SHAPE_SET (see benchmarks/mixedAttackLOHRaacBurstShapeSweep.js), not fixed at 96000 bytes."
+  workers:
+    type: local
+    number: 30
+  rounds:
+    - label: warmup
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: warmup
+          roundDurationSeconds: 60
+    - label: calm-1
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm1
+          roundDurationSeconds: 90
+    - label: attack-burst-1
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 1.0
+          roundLabel: attack1
+          roundDurationSeconds: 120
+    - label: calm-2
+      txDuration: 90
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm2
+          roundDurationSeconds: 90
+    - label: attack-burst-2
+      txDuration: 120
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 1.0
+          roundLabel: attack2
+          roundDurationSeconds: 120
+    - label: calm-3
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: benchmarks/mixedAttackLOHRaacBurstShapeSweep.js
+        arguments:
+          numContracts: 30
+          contractPrefix: SB
+          attackRatio: 0
+          roundLabel: calm3
+          roundDurationSeconds: 60
