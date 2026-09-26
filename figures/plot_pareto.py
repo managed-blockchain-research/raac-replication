@@ -25,7 +25,7 @@ data = {
          "aggressive":(355.7,177.0,456.0)},
 }
 
-fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.2), gridspec_kw={"width_ratios": [1.7, 1]})
+fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.6), gridspec_kw={"width_ratios": [1.7, 1]})
 
 # Panel (a): grouped bars, GC pause by policy x intensity
 ax = axes[0]
@@ -44,24 +44,28 @@ ax.set_xticks(x)
 ax.set_xticklabels(["0%", "25%", "75%"])
 ax.set_xlabel("Attack intensity (attackRatio)")
 ax.set_ylabel("GC pause (ms, 95% CI)")
-ax.set_title("(a) GC pause by policy and intensity", fontsize=8.5, loc="left")
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False, fontsize=6)
 
-# Panel (b): Native Evict calm-round fail rate
+# Panel (b): Native Evict calm-round fail rate. Aggregated directly from
+# each rep's report.html Succ/Fail columns over all "calm-*" rounds
+# (n=3 reps/intensity); supersedes an earlier hand-computed 18.37/18.58/
+# 19.12 that could not be reproduced against report.html (see the
+# heap-size-sweep figure's own correction note, 2026-09-26).
 ax = axes[1]
-rates = [18.37, 18.58, 19.12]
+rates = [3.68, 3.68, 3.68]
 ax.plot(intensities, rates, marker="o", color="#c1440e", linewidth=1.6, markersize=5)
-ax.set_ylim(0, 25)
+ax.set_ylim(0, 6)
 ax.set_xticks(intensities)
 ax.set_xticklabels(["0%", "25%", "75%"])
 ax.set_xlabel("Attack intensity (attackRatio)")
 ax.set_ylabel("Native Evict benign-tx\nfail rate (%)")
-ax.set_title("(b) Native Evict collateral cost", fontsize=8.5, loc="left")
 for xi, yi in zip(intensities, rates):
-    ax.annotate(f"{yi:.1f}%", (xi, yi), textcoords="offset points", xytext=(0, 8),
+    ax.annotate(f"{yi:.2f}%", (xi, yi), textcoords="offset points", xytext=(0, 8),
                 ha="center", fontsize=7)
 
-fig.tight_layout()
-fig.savefig("/home/yeochan.yoon/banning-worktrees/raac-revision/papers/raac/raac_fig_pareto.pdf")
-fig.savefig("/home/yeochan.yoon/banning-worktrees/raac-revision/papers/raac/raac_fig_pareto.png", dpi=200)
+fig.tight_layout(rect=[0, 0.06, 1, 1])
+fig.text(0.315, 0.02, "(a) GC pause by policy and intensity", ha="center", fontsize=8.5)
+fig.text(0.81, 0.02, "(b) Native Evict collateral cost", ha="center", fontsize=8.5)
+fig.savefig("/home/yeochan.yoon/banning-worktrees/raac-revision/papers/raac/raac_fig7_pareto.pdf")
+fig.savefig("/home/yeochan.yoon/banning-worktrees/raac-revision/papers/raac/raac_fig7_pareto.png", dpi=200)
 print("done")
