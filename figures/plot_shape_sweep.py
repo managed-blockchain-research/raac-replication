@@ -53,7 +53,7 @@ ax.text(3000 * 0.85, besu_aggr_mixed - 0.09, "Mixed (Aggressive)", fontsize=6.5,
 ax.set_xscale("log")
 ax.invert_xaxis()
 ax.set_xlabel("Attack payload size (bytes, log scale)")
-ax.set_ylabel("GC duty cycle (‰ of wall-clock)")
+ax.set_ylabel("GC duty cycle (per mille of wall-clock)")
 ax.legend(loc="upper left", frameon=False, fontsize=6.5)
 ax.set_ylim(0, 1.35)
 
