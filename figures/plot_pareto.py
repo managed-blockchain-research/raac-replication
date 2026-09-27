@@ -60,8 +60,10 @@ ax.set_xticklabels(["0%", "25%", "75%"])
 ax.set_xlabel("Attack intensity (attackRatio)")
 ax.set_ylabel("Native Evict benign-tx\nfail rate (%)")
 for xi, yi in zip(intensities, rates):
-    ax.annotate(f"{yi:.2f}%", (xi, yi), textcoords="offset points", xytext=(0, 8),
-                ha="center", fontsize=7)
+    ha = "left" if xi == intensities[0] else "center"
+    xoff = 4 if xi == intensities[0] else 0
+    ax.annotate(f"{yi:.2f}%", (xi, yi), textcoords="offset points", xytext=(xoff, 8),
+                ha=ha, fontsize=7)
 
 fig.tight_layout(rect=[0, 0.06, 1, 1])
 fig.text(0.315, 0.02, "(a) GC pause by policy and intensity", ha="center", fontsize=8.5)
